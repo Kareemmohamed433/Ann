@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>شبكة ART1</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            padding-top: 20px;
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 900px;
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+        }
+        .input-group {
+            margin-bottom: 10px;
+        }
+        h2 {
+            color: #2c3e50;
+            font-weight: 700;
+            margin-bottom: 25px;
+        }
+        .btn-primary {
+            background-color: #3498db;
+            border-color: #3498db;
+        }
+        .btn-success {
+            background-color: #2ecc71;
+            border-color: #2ecc71;
+        }
+        .result-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        table {
+            font-size: 14px;
+        }
+        th {
+            font-weight: 600;
+        }
+        .step {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-left: 4px solid #3498db;
+            background-color: #f8f9fa;
+        }
+        .step h5 {
+            margin-bottom: 5px;
+        }
+        .matrix {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .cluster-badge {
+            font-size: 1rem;
+            padding: 0.5em 0.8em;
+            margin-right: 5px;
+        }
+        .vector-input {
+            direction: ltr;
+            text-align: left;
+        }
+    </style>
+    <script>
+        function addPoint() {
+            const container = document.getElementById('points-container');
+            const index = container.children.length;
+            const div = document.createElement('div');
+            div.className = 'input-group';
+            div.innerHTML = `
+                <input type="text" class="form-control vector-input" name="input_${index}" placeholder="1 0 1 0" required>
+                <button type="button" class="btn btn-danger" onclick="this.parentElement.remove()">حذف</button>
+            `;
+            container.appendChild(div);
+        }
+
+        // Automatically add the default input vectors from Example 5.1
+        window.onload = function() {
+            const defaultVectors = ["1 1 0 0", "0 0 0 1", "1 0 0 0", "0 0 1 1"];
+            const container = document.getElementById('points-container');
+            container.innerHTML = ''; // Clear any existing inputs
+            defaultVectors.forEach((vector, index) => {
+                const div = document.createElement('div');
+                div.className = 'input-group';
+                div.innerHTML = `
+                    <input type="text" class="form-control vector-input" name="input_${index}" value="${vector}" required>
+                    <button type="button" class="btn btn-danger" onclick="this.parentElement.remove()">حذف</button>
+                `;
+                container.appendChild(div);
+            });
+            
+            // Add event listener for form validation
+            document.querySelector('form').addEventListener('submit', function(e) {
+                const rhoInput = document.getElementById('rho');
+                const rhoValue = parseFloat(rhoInput.value);
+                if (isNaN(rhoValue) || rhoValue <= 0 || rhoValue >= 1) {
+                    alert('يجب أن يكون معامل اليقظة (ρ) رقم بين 0 و 1');
+                    e.preventDefault();
+                }
+            });
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h2 class="text-center">شبكة ART1</h2>
+        <a href="/" class="btn btn-secondary mb-3">العودة إلى الصفحة الرئيسية</a>
+        
+        <form method="post">
+            <h4 class="mb-3">إدخال المتجهات (4 مكونات ثنائية مفصولة بمسافات):</h4>
+            <div id="points-container">
+                <!-- Default vectors will be populated by JavaScript -->
+            </div>
+            <button type="button" class="btn btn-success mb-3" onclick="addPoint()">إضافة متجه</button>
+            
+            <div class="mb-3">
+                <label for="rho" class="form-label">معامل اليقظة (ρ) - يجب أن يكون بين 0 و 1:</label>
+                <input type="text" class="form-control" id="rho" name="rho" value="0.4" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary">تشغيل ART1</button>
+        </form>
+
+        {% if error %}
+            <div class="alert alert-danger mt-4">{{ error }}</div>
+        {% endif %}
+
+        {% if steps %}
+        <div class="result-section">
+            <h4 class="mb-3">الخطوات التفصيلية:</h4>
+            {% for step in steps %}
+            <div class="step">
+                <h5>الخطوة {{ step.step }}: {{ step.description }}</h5>
+                {% if step.params %}
+                    <p><strong>المعاملات:</strong></p>
+                    <ul>
+                        <li>L: {{ step.params.L }}</li>
+                        <li>ρ: {{ step.params.rho }}</li>
+                        <li>الأوزان b (الأسفل-للأعلى): {{ step.params.b }}</li>
+                        <li>الأوزان t (الأعلى-للأسفل): {{ step.params.t }}</li>
+                    </ul>
+                {% endif %}
+                {% if step.input %}
+                    <p><strong>المتجه المدخل:</strong> [{{ step.input | join(' ') }}]</p>
+                {% endif %}
+                {% if step.activation_f1 %}
+                    <p><strong>تفعيلات F1:</strong> [{{ step.activation_f1 | join(' ') }}]</p>
+                {% endif %}
+                {% if step.y %}
+                    <p><strong>تفعيلات F2:</strong> [{{ step.y | join(', ') }}]</p>
+                {% endif %}
+                {% if step.max_y %}
+                    <p><strong>التفعيل الأقصى:</strong> {{ step.max_y }}</p>
+                {% endif %}
+                {% if step.J is defined %}
+                    <p><strong>العقدة الفائزة J:</strong> {{ step.J + 1 }}</p>
+                {% endif %}
+                {% if step.x_new %}
+                    <p><strong>المتجه الجديد (x_new):</strong> [{{ step.x_new | join(' ') }}]</p>
+                    <p><strong>النسبة الجديدة:</strong> {{ step.x_new_norm }}</p>
+                {% endif %}
+                {% if step.ratio %}
+                    <p><strong>النسبة:</strong> {{ step.ratio }}</p>
+                {% endif %}
+                {% if step.cluster %}
+                    <p><strong>التجميع:</strong> <span class="badge bg-primary cluster-badge">المجموعة {{ step.cluster }}</span></p>
+                {% endif %}
+                {% if step.reset %}
+                    <div class="alert alert-warning">
+                        <strong>إعادة المحاولة:</strong> تم إعادة تعيين العقدة الفائزة بسبب عدم تحقيق شرط اليقظة
+                    </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if final_clusters %}
+        <div class="result-section">
+            <h4 class="mb-3">نتائج التجميع النهائية:</h4>
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>المتجه</th>
+                            <th>المجموعة</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for vector, cluster in final_clusters.items() %}
+                        <tr>
+                            <td>[{{ vector | join(' ') }}]</td>
+                            <td><span class="badge bg-primary">{{ cluster }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if final_b and final_t %}
+        <div class="result-section">
+            <h4 class="mb-3">الأوزان النهائية بعد التحديث:</h4>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="matrix">
+                        <h5>مصفوفة الأوزان b (الأسفل-للأعلى):</h5>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                {% for row in final_b %}
+                                <tr>
+                                    {% for val in row %}
+                                    <td>{{ val }}</td>
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="matrix">
+                        <h5>مصفوفة الأوزان t (الأعلى-للأسفل):</h5>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                {% for row in final_t %}
+                                <tr>
+                                    {% for val in row %}
+                                    <td>{{ val }}</td>
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
